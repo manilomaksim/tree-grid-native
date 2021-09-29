@@ -1,0 +1,19 @@
+::ng-deep tr.row-to-paste {
+  background: pink;
+}
+
+.visibility-settings {
+  display: flex;
+  align-items: baseline;
+}
+
+.visibility-settings__title {
+  margin-right: 1.5rem;
+  font-weight: bold;
+}
+
+.visibility-settings__item {
+  margin-right: 1rem;
+  display: flex;
+  align-items: center;
+}
