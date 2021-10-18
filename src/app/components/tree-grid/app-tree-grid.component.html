@@ -1,7 +1,7 @@
 <div class="main">
   <div class="visibility-settings">
     <p class="visibility-settings__title">Columns visibility: </p>
-    <div class="visibility-settings__item" *ngFor="let item of ['Country', 'First Name', 'Last Name', 'Gender', 'Age', 'Email']"
+    <div class="visibility-settings__item" *ngFor="let item of ['Task ID', 'Task Name', 'Start Date', 'End Date', 'Duration', 'Priority']"
     >
       <label [for]="'toggle-hide-' + item">{{ item }}</label>
       <input
@@ -12,31 +12,5 @@
       >
     </div>
   </div>
-  <ejs-treegrid #treegrid [dataSource]='data' *ngIf="data"
-                childMapping='users' height="85vh"
-                [allowResizing]='true' [allowSorting]='true'
-                [contextMenuItems]='contextMenuItems'
-                [treeColumnIndex]='1'
-                [editSettings]='editSettings'
-                [allowFiltering]='true'
-                [allowTextWrap]="true"
-                [allowReordering]="true"
-                [allowRowDragAndDrop]='true'
-                [selectionSettings]="selectionSetting"
-                (rowSelected)="rowSelecting($event)"
-                [frozenColumns]='frozenColumns'
-                (actionComplete)="onActionComplete($event)"
-                (contextMenuClick)='contextMenuClick($event)'
-                (contextMenuOpen)='contextMenuOpen($event)'
-  >
-    <e-columns>
-      <e-column
-        *ngFor="let col of columns; let i = index"
-        [field]="col.field"
-        [headerText]="col.text"
-        width="200"
-        [minWidth]="minWidths[i]"
-      ></e-column>
-    </e-columns>
-  </ejs-treegrid>
+  <div id="TreeGrid"></div>
 </div>

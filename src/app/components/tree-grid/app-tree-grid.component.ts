@@ -1,18 +1,25 @@
-import { Component, Inject, ViewChild } from '@angular/core';
-import { UsersService } from '../../services/users.service';
-import { ICountryTree, IPasteIds } from '../../interfaces/sours-data-interfase';
+import { Component, Inject, OnInit } from '@angular/core';
 import { BeforeOpenCloseEventArgs } from '@syncfusion/ej2-inputs';
 import { MenuEventArgs } from '@syncfusion/ej2-navigations';
 import {
-  EditSettingsModel, RowPosition,
-  SelectionSettingsModel,
-  TreeGridComponent
-} from '@syncfusion/ej2-angular-treegrid';
+  EditSettingsModel,
+  RowPosition,
+  SelectionSettingsModel
+} from '@syncfusion/ej2-treegrid';
 import { DOCUMENT } from '@angular/common';
-import { take } from 'rxjs/operators';
-// @ts-ignore
-import { v4 as uuid } from 'uuid';
+import { enableRipple } from '@syncfusion/ej2-base';
+enableRipple(true);
+import {
+  TreeGrid,
+  Resize,
+  Edit,
+  RowDD,
+  ContextMenu,
+  Sort
+} from '@syncfusion/ej2-treegrid';
+import sampleData from 'sample.data';
 
+TreeGrid.Inject(Resize, Edit, RowDD, ContextMenu, Sort);
 
 type PasteMode = 'copy' | 'cut' | null;
 
@@ -21,18 +28,16 @@ type PasteMode = 'copy' | 'cut' | null;
   templateUrl: './app-tree-grid.component.html',
   styleUrls: ['./app-tree-grid.component.css'],
 })
-export class AppTreeGridComponent {
+export class AppTreeGridComponent implements OnInit {
 
-  @ViewChild('treegrid')
-  public treeGridObj: TreeGridComponent | undefined;
+  public treeGridObj: TreeGrid | undefined;
   public readonly editSettings: EditSettingsModel  = {
     allowEditing: true,
     allowAdding: true,
     allowDeleting: true,
-    mode: 'Cell'
+    mode: 'Row'
   };
   public readonly selectionSetting: SelectionSettingsModel = { type: 'Multiple', mode: 'Row' };
-  public data: ICountryTree[] | null = [];
   public readonly contextMenuItems: Object[]  =  [
     'AddRow',
     'Edit',
@@ -108,14 +113,6 @@ export class AppTreeGridComponent {
       ]
     }
   ];
-  public columns: Record<string, any>[] = [
-    { field: 'country', text: 'Country' },
-    { field: 'firstName', text: 'First Name' },
-    { field: 'lastName', text: 'Last Name' },
-    { field: 'gender', text: 'Gender' },
-    { field: 'age', text: 'Age' },
-    { field: 'email', text: 'Email' }
-  ];
   public minWidths: Record<string, number> = {};
   public hiddenColumns: string[] = [];
   public frozenColumns: number = 0;
@@ -128,13 +125,66 @@ export class AppTreeGridComponent {
   private itemsToPast: any[] = []
   private pasteMode: PasteMode = null;
 
-  constructor(
-    private usersService: UsersService,
-    @Inject(DOCUMENT) private document: Document
-  ) {
-    this.usersService.getAll().pipe(
-      take(1),
-    ).subscribe((data) => this.data = data);
+  constructor(@Inject(DOCUMENT) private document: Document)
+  { }
+
+  ngOnInit() {
+    this.treeGridObj = new TreeGrid({
+      dataSource: sampleData,
+      allowResizing: true,
+      allowSorting: true,
+      allowFiltering: true,
+      allowTextWrap: true,
+      allowReordering: true,
+      allowRowDragAndDrop: true,
+      selectionSettings: this.selectionSetting,
+      frozenColumns: this.frozenColumns,
+      childMapping: 'subtasks',
+      treeColumnIndex: 1,
+      editSettings: this.editSettings,
+      contextMenuItems: this.contextMenuItems,
+      columns: [
+        {
+          field: 'taskID',
+          headerText: 'Task ID',
+          width: 80,
+          isPrimaryKey: true,
+          textAlign: 'Right',
+          editType: 'numericedit'
+        },
+        { field: 'taskName', headerText: 'Task Name', width: 190 },
+        {
+          field: 'startDate',
+          headerText: 'Start Date',
+          format: 'yMd',
+          width: 90,
+          editType: 'datepickeredit',
+          textAlign: 'Right',
+        },
+        {
+          field: 'endDate',
+          headerText: 'End Date',
+          format: 'yMd',
+          width: 90,
+          editType: 'datepickeredit',
+          textAlign: 'Right',
+        },
+        {
+          field: 'duration',
+          headerText: 'Duration',
+          width: 85,
+          textAlign: 'Right',
+          editType: 'numericedit',
+          edit: { params: { format: 'n' } },
+        },
+        { field: 'priority', headerText: 'Priority', width: 80 },
+      ],
+      rowSelected: (args) => this.rowSelecting(args),
+      contextMenuClick: (args) => this.contextMenuClick(args),
+      contextMenuOpen: (args) => this.contextMenuOpen(args)
+    });
+
+    this.treeGridObj.appendTo('#TreeGrid');
   }
 
   get contextMenuCells(): NodeListOf<HTMLElement> {
@@ -186,7 +236,6 @@ export class AppTreeGridComponent {
       return;
     }
 
-
     const { id } = args.item;
 
     if (id === 'freezing') {
@@ -208,50 +257,30 @@ export class AppTreeGridComponent {
       this.pasteMode = id as PasteMode;
     }
 
-
     if (['paste_above', 'paste_below', 'paste_child'].includes(id) && this.contextMenuRowIndex) {
       const [, position] = id.split('_');
       const fromIndexes = this.itemsToPast.map(({ index }) => index);
-      const ids = this.itemsToPast.map(({ _id }) => _id)
-      const newItemsToPast = this.itemsToPast.map((elem) => ({
-        ...elem,
-        _id: uuid()
-      }))
-      const newItemIds: IPasteIds = {
-        id: ids,
-        newId: newItemsToPast.map(({ _id }) => _id)
-      }
       if (this.pasteMode === 'copy'){
         const pos = {
           above: 'Above',
           below: 'Below'
         }[position] || 'Child';
-        this.treeGridObj.addRecord(newItemsToPast, this.contextMenuRowIndex, pos as RowPosition);
-      } else if (this.pasteMode === 'cut') {
-        this.treeGridObj.reorderRows(fromIndexes, this.contextMenuRowIndex, position);
+
+        for(let i = this.itemsToPast.length - 1; i >= 0; i--) {
+          this.treeGridObj.addRecord(this.itemsToPast[i], this.contextMenuRowIndex, pos as RowPosition);
+        }
       }
-      if (this.pasteMode){
-        this.usersService.movePosition(newItemIds, this.contextMenuRowIndex, position as 'above' | 'below' | 'child', 'Philippines', this.pasteMode).subscribe();
+
+      else if (this.pasteMode === 'cut') {
+        this.treeGridObj.reorderRows(fromIndexes, Number(this.contextMenuRowIndex), position);
       }
+
       this.toggleRowToPasteCls(false);
       return;
     }
+
     const [type, value] = id.split('_');
-
     this.setPropsToContextMenuCells(type, value);
-  }
-
-  deleteRecords(data: any): void{
-    const mapToRemove = data.reduce((resultMap: Record<string, string[]>, currentItem: any) => {
-      const { _id } = currentItem;
-      const { country } = currentItem.parentItem;
-      return {
-        ...resultMap,
-        [country]: resultMap[country] ? [...resultMap[country], _id] : [_id]
-      };
-    }, {});
-
-    this.usersService.delete(mapToRemove).subscribe();
   }
 
   private adjustMenuItemsVisibility(): void {
@@ -279,8 +308,6 @@ export class AppTreeGridComponent {
     if(arg){
       const elem: Element = arg.event.target as Element;
       const targetRow = elem.closest('.e-row')
-
-
       const colindex = elem.closest('.e-headercell')?.getAttribute('aria-colindex')
       const rowindex = targetRow?.getAttribute('aria-rowindex');
 
@@ -292,21 +319,11 @@ export class AppTreeGridComponent {
       }
     }
   }
+
   rowSelecting(event: any): void {
     const elem: Element = event.row as Element;
-    if(elem?.getAttribute('aria-expanded')) {
+    if(elem && elem.getAttribute && elem?.getAttribute('aria-expanded')) {
       elem.setAttribute('aria-selected', 'false')
-    }
-  }
-  onActionComplete(event: any): void {
-    const { type, requestType, data } = event;
-    if (requestType === 'delete') {
-      this.deleteRecords(data)
-    } else if (type === 'save') {
-      const { _id } = data;
-      const { country } = data.parentItem;
-      const { field } = event.column;
-      this.usersService.update(_id, country, { [field]: data[field] }).subscribe();
     }
   }
 }
